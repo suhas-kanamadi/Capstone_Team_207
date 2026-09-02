@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GridShield — Cyber-Physical Threat Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #03060f; --bg-deep: #060c1a; --bg-panel: #0a1225; --bg-card: #0d1830; --bg-hover: #112040;
+    --border: #1a2d50; --border-bright: #2a4a7f;
+    --accent-blue: #00aaff; --accent-cyan: #00e5ff; --accent-green: #00ff88;
+    --accent-yellow: #ffcc00; --accent-orange: #ff7700; --accent-red: #ff2244; --accent-purple: #aa44ff;
+    --text-primary: #e8f4ff; --text-secondary: #7a9cc5; --text-dim: #3d5a80;
+    --glow-blue: 0 0 20px rgba(0,170,255,0.3); --glow-red: 0 0 20px rgba(255,34,68,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Barlow', sans-serif; background: var(--bg-void); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+  body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,170,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,170,255,0.03) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; z-index: 0; }
+
+  .topbar { position: sticky; top: 0; z-index: 100; background: rgba(6,12,26,0.95); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 56px; }
+  .logo { display: flex; align-items: center; gap: 12px; }
+  .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--bg-void); animation: pulse-logo 3s infinite; }
+  @keyframes pulse-logo { 0%, 100% { box-shadow: 0 0 10px rgba(0,170,255,0.4); } 50% { box-shadow: 0 0 25px rgba(0,229,255,0.7); } }
+  .logo-text { font-family: 'Rajdhani', sans-serif; font-size: 20px; font-weight: 700; letter-spacing: 3px; background: linear-gradient(90deg, var(--accent-blue), var(--accent-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .logo-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+
+  .topbar-center { display: flex; gap: 4px; }
+  .nav-tab { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); padding: 6px 16px; border-radius: 4px; cursor: pointer; transition: all 0.2s; border: 1px solid transparent; }
+  .nav-tab:hover { color: var(--text-secondary); background: var(--bg-card); }
+  .nav-tab.active { color: var(--accent-cyan); background: rgba(0,229,255,0.08); border-color: rgba(0,229,255,0.2); }
+
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .status-badge { display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-green); background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.2); padding: 5px 12px; border-radius: 4px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-green); animation: blink 1.5s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .btn-export { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 1px; color: var(--text-primary); background: var(--bg-card); border: 1px solid var(--border-bright); padding: 6px 14px; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+  .btn-export:hover { background: var(--bg-hover); border-color: var(--accent-blue); }
+
+  .layout { position: relative; z-index: 1; display: grid; grid-template-columns: 1fr 320px; grid-template-rows: auto auto 1fr; gap: 0; min-height: calc(100vh - 56px); }
+
+  .metrics-strip { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--border); }
+  .metric-cell { padding: 16px 20px; border-right: 1px solid var(--border); transition: background 0.2s; }
+  .metric-cell:hover { background: var(--bg-card); }
+  .metric-cell:last-child { border-right: none; }
+  .metric-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 6px; }
+  .metric-value { font-family: 'Rajdhani', sans-serif; font-size: 26px; font-weight: 700; line-height: 1; }
+  .metric-unit { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-secondary); margin-top: 3px; }
+
+  .main-content { border-right: 1px solid var(--border); overflow-y: auto; }
+  .sidebar { overflow-y: auto; }
+
+  .section-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; border-bottom: 1px solid var(--border); background: var(--bg-deep); }
+  .section-title { font-family: 'Rajdhani', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); }
+  .section-title span { color: var(--accent-blue); margin-right: 8px; }
+
+  .detection-panel, .mitigation-panel, .charts-container-section, .clients-grid { padding: 20px; border-bottom: 1px solid var(--border); }
+  
+  .alert-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 16px; position: relative; overflow: hidden; transition: all 0.3s; }
+  .alert-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+  .alert-card.critical::before { background: var(--accent-red); box-shadow: var(--glow-red); }
+  .alert-card.critical { border-color: rgba(255,34,68,0.3); background: rgba(255,34,68,0.05); }
+
+  .alert-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .alert-type { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+  .alert-confidence { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-green); background: rgba(0,255,136,0.1); padding: 2px 8px; border-radius: 3px; border: 1px solid rgba(0,255,136,0.2); }
+  .alert-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+  .detail-key { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--text-dim); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+  .detail-val { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-primary); }
+
+  .btn-group { display: flex; gap: 8px; margin-top: 12px; }
+  .btn-primary { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 7px 16px; border-radius: 4px; cursor: pointer; border: none; background: linear-gradient(135deg, #0055aa, #0077cc); color: white; border: 1px solid rgba(0,170,255,0.3); transition: 0.2s;}
+  .btn-primary:active { transform: scale(0.95); }
+  .btn-danger { font-family: 'Rajdhani', sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; padding: 7px 16px; border-radius: 4px; cursor: pointer; background: rgba(255,34,68,0.15); color: var(--accent-red); border: 1px solid rgba(255,34,68,0.3); transition: 0.2s;}
+  .btn-danger:active { transform: scale(0.95); }
+
+  .mitigation-steps { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+  .step-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 5px; }
+  .step-num { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--accent-blue); width: 20px; flex-shrink: 0; }
+  .step-text { font-size: 13px; color: var(--text-secondary); flex: 1; }
+  .step-icon { font-size: 14px; opacity: 0.8; }
+
+  .grid-charts-wrapper { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; width: 100%; }
+  .sub-chart-card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+  .sub-chart-title-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .sub-chart-label { font-family: 'Rajdhani', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 1px; }
+  .sub-chart-val-box { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-secondary); }
+  .sub-chart-canvas-wrap { position: relative; height: 110px; background: var(--bg-deep); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .sub-chart-canvas-wrap canvas { width: 100%; height: 100%; display: block; }
+
+  .clients-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .client-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; padding: 14px; transition: all 0.2s; }
+  .client-card.anomaly { border-color: rgba(255,34,68,0.35); background: rgba(255,34,68,0.04); animation: card-pulse 2s infinite; }
+  @keyframes card-pulse { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 15px rgba(255,34,68,0.2); } }
+  .client-id { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase; }
+  .client-status { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .status-pill { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 3px; font-weight: 500; }
+  .pill-normal { background: rgba(0,255,136,0.1); color: var(--accent-green); border: 1px solid rgba(0,255,136,0.2); }
+  .pill-attack { background: rgba(255,34,68,0.1); color: var(--accent-red); border: 1px solid rgba(255,34,68,0.2); }
+  .client-error { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); }
+  .client-error span { font-size: 13px; font-weight: 500; }
+  .error-normal span { color: var(--accent-green); }
+  .error-high span { color: var(--accent-red); }
+  .threshold-bar { height: 3px; background: var(--border); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .threshold-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+  .sidebar-section { border-bottom: 1px solid var(--border); }
+  .event-log { padding: 12px 16px; max-height: 280px; overflow-y: auto; }
+  .event-item { display: flex; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(26,45,80,0.5); align-items: flex-start; }
+  .event-time { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-dim); flex-shrink: 0; padding-top: 1px; }
+  .event-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .event-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.4; text-transform: capitalize; }
+
+  .attack-dist { padding: 16px; }
+  .dist-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .dist-bar-bg { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .dist-bar { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+  .dist-count { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-primary); width: 25px; text-align: right; }
+
+  .tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 1px; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; }
+  .tag-red { background: rgba(255,34,68,0.15); color: var(--accent-red); border: 1px solid rgba(255,34,68,0.25); }
+  .tag-blue { background: rgba(0,170,255,0.1); color: var(--accent-blue); border: 1px solid rgba(0,170,255,0.2); }
+
+  .notif-flash { position: fixed; top: 70px; right: 24px; z-index: 200; background: rgba(255,34,68,0.12); border: 1px solid rgba(255,34,68,0.4); border-left: 3px solid var(--accent-red); padding: 12px 16px; border-radius: 4px; backdrop-filter: blur(10px); display: none; }
+  .notif-title { font-family: 'Rajdhani', sans-serif; font-size: 13px; font-weight: 700; color: var(--accent-red); letter-spacing: 1px; margin-bottom: 3px; }
+  .notif-body { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--text-secondary); text-transform: capitalize;}
+  
+  .toast-action { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 300; background: rgba(0,255,136,0.15); border: 1px solid var(--accent-green); color: var(--accent-green); padding: 10px 20px; border-radius: 30px; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 1px; display: none; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-deep); }
+  ::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="notif-flash" id="alertPopup">
+  <div class="notif-title">⚠ ANOMALY DETECTED</div>
+  <div class="notif-body" id="alertPopupBody"></div>
+</div>
+
+<div class="toast-action" id="toastBox">✓ ACTION CONFIRMED</div>
+
+<div class="topbar">
+  <div class="logo"><div class="logo-icon">⬡</div><div><div class="logo-text">GRIDSHIELD</div><div class="logo-sub">Cyber-Physical Threat Detection</div></div></div>
+  <div class="topbar-center">
+    <div class="nav-tab active" data-target="overview">Overview</div>
+    <div class="nav-tab" data-target="detection">Attack Detection</div>
+    <div class="nav-tab" data-target="charts">Sensor Charts</div>
+    <div class="nav-tab" data-target="mitigation">Mitigation</div>
+  </div>
+  <div class="topbar-right">
+    <div class="status-badge"><div class="status-dot"></div>SYSTEM ACTIVE</div>
+    <button class="btn-export" onclick="window.location.href='/api/export'">⬇ Export Logs</button>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="metrics-strip">
+    <div class="metric-cell"><div class="metric-label">Voltage Avg</div><div class="metric-value metric-v" style="color: var(--accent-cyan)">230.0</div><div class="metric-unit">Volts · Phase A</div></div>
+    <div class="metric-cell"><div class="metric-label">Active Alarms</div><div class="metric-value metric-v" style="color: var(--accent-red)">0</div><div class="metric-unit">Total Detected</div></div>
+    <div class="metric-cell"><div class="metric-label">Anomaly Rate</div><div class="metric-value metric-v" style="color: var(--accent-orange)">0.0%</div><div class="metric-unit">Session Traffic</div></div>
+    <div class="metric-cell"><div class="metric-label">Active Nodes</div><div class="metric-value" style="color: var(--accent-purple)">4/4</div><div class="metric-unit">Substations</div></div>
+  </div>
+
+  <div class="main-content">
+    
+    <div id="sec-classification">
+      <div class="section-header"><div class="section-title"><span>MODULE 1</span>ATTACK CLASSIFICATION</div><div class="tag tag-red">LIVE</div></div>
+      <div class="detection-panel" id="mainDetectionPanel">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);text-align:center;padding:30px;">✓ SYSTEM ADAPTIVE INSULATION ACTIVE — NO ATTEMPTS DETECTED</div>
+      </div>
+    </div>
+
+    <div id="sec-charts-container" style="display:none;">
+      <div class="section-header"><div class="section-title"><span>MODULE 2</span>REAL-TIME TRACKING GRAPHS</div><div class="tag tag-blue">SEPARATE NODES</div></div>
+      <div class="charts-container-section">
+        <div class="grid-charts-wrapper">
+          
+          <div class="sub-chart-card">
+            <div class="sub-chart-title-bar">
+              <div class="sub-chart-label" style="color:var(--accent-blue)">client_A Track</div>
+              <div class="sub-chart-val-box" id="lbl_client_a">Err: 0.00 | Thresh: 0.00</div>
+            </div>
+            <div class="sub-chart-canvas-wrap"><canvas id="chart_client_a"></canvas></div>
+          </div>
+
+          <div class="sub-chart-card">
+            <div class="sub-chart-title-bar">
+              <div class="sub-chart-label" style="color:var(--accent-cyan)">client_B Track</div>
+              <div class="sub-chart-val-box" id="lbl_client_b">Err: 0.00 | Thresh: 0.00</div>
+            </div>
+            <div class="sub-chart-canvas-wrap"><canvas id="chart_client_b"></canvas></div>
+          </div>
+
+          <div class="sub-chart-card">
+            <div class="sub-chart-title-bar">
+              <div class="sub-chart-label" style="color:var(--accent-green)">client_C Track</div>
+              <div class="sub-chart-val-box" id="lbl_client_c">Err: 0.00 | Thresh: 0.00</div>
+            </div>
+            <div class="sub-chart-canvas-wrap"><canvas id="chart_client_c"></canvas></div>
+          </div>
+
+          <div class="sub-chart-card">
+            <div class="sub-chart-title-bar">
+              <div class="sub-chart-label" style="color:var(--accent-purple)">client_D Track</div>
+              <div class="sub-chart-val-box" id="lbl_client_d">Err: 0.00 | Thresh: 0.00</div>
+            </div>
+            <div class="sub-chart-canvas-wrap"><canvas id="chart_client_d"></canvas></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div id="sec-mitigation" style="display:none;">
+      <div class="section-header"><div class="section-title"><span>MODULE 3</span>MITIGATION STRATEGY ENGINE</div><div class="tag tag-blue">AUTO</div></div>
+      <div class="mitigation-panel" id="mainMitigationPanel">
+        <div style="font-size:12px;color:var(--text-dim);font-family:'JetBrains Mono',monospace;margin-bottom:12px;letter-spacing:1px" id="mitigationTitle">RECOMMENDED ACTIONS → NO ACTIVE THREATS</div>
+        <div class="mitigation-steps" id="mitigationStepsContainer">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-dim);">No active intervention required. Grid operations stable.</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn-primary" onclick="showToast('✓ All mitigation steps deployed to substations.')">Apply All Steps</button>
+          <button class="btn-danger" onclick="showToast('🔒 Target node successfully isolated from grid.')">Isolate Node</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="sec-nodes">
+      <div class="section-header"><div class="section-title"><span>MODULE 4</span>CLIENT NODE STATUS</div><div class="tag tag-blue">4 NODES</div></div>
+      <div class="clients-grid">
+        <div class="client-card" id="card_client_a"><div class="client-id">client_A</div><div class="client-status"><div class="status-pill pill-normal">NORMAL</div></div><div class="client-error error-normal">Error: <span>0.00</span></div><div class="threshold-bar"><div class="threshold-fill" id="bar_client_a" style="width:0%;background:var(--accent-green)"></div></div></div>
+        <div class="client-card" id="card_client_b"><div class="client-id">client_B</div><div class="client-status"><div class="status-pill pill-normal">NORMAL</div></div><div class="client-error error-normal">Error: <span>0.00</span></div><div class="threshold-bar"><div class="threshold-fill" id="bar_client_b" style="width:0%;background:var(--accent-green)"></div></div></div>
+        <div class="client-card" id="card_client_c"><div class="client-id">client_C</div><div class="client-status"><div class="status-pill pill-normal">NORMAL</div></div><div class="client-error error-normal">Error: <span>0.00</span></div><div class="threshold-bar"><div class="threshold-fill" id="bar_client_c" style="width:0%;background:var(--accent-green)"></div></div></div>
+        <div class="client-card" id="card_client_d"><div class="client-id">client_D</div><div class="client-status"><div class="status-pill pill-normal">NORMAL</div></div><div class="client-error error-normal">Error: <span>0.00</span></div><div class="threshold-bar"><div class="threshold-fill" id="bar_client_d" style="width:0%;background:var(--accent-green)"></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-section"><div class="section-header"><div class="section-title"><span>›</span>ATTACK DISTRIBUTION</div></div><div class="attack-dist" id="sidebarDist"></div></div>
+    <div class="sidebar-section"><div class="section-header"><div class="section-title"><span>›</span>EVENT LOG</div><div class="status-dot" style="background:var(--accent-red)"></div></div><div class="event-log" id="sidebarLogs"></div></div>
+  </div>
+</div>
+
+<script>
+function showToast(msg) {
+  const tb = document.getElementById('toastBox');
+  tb.innerText = msg; tb.style.display = 'block';
+  setTimeout(() => { tb.style.display = 'none'; }, 3000);
+}
+
+const strategyDB = {
+    "FDI_ATTACK": [
+        {num: "01", text: "Cross-validate sensor data with neighboring substations", icon: "📊"},
+        {num: "02", text: "Reject injected data packets from aggregation", icon: "🚫"},
+        {num: "03", text: "Initiate fallback state estimation", icon: "🔄"}
+    ],
+    "PULSE_ATTACK": [
+        {num: "01", text: "Activate surge protection relays", icon: "⚡"},
+        {num: "02", text: "Isolate high-voltage transient source", icon: "🔌"},
+        {num: "03", text: "Normalize bus voltage through capacitor banks", icon: "🔋"}
+    ],
+    "LOAD_SUPPRESSION_ATTACK": [
+        {num: "01", text: "Reroute power to compensate for false drop", icon: "🔀"},
+        {num: "02", text: "Verify physical line currents manually", icon: "🔍"},
+        {num: "03", text: "Flag node for physical inspection", icon: "👷"}
+    ],
+    "OSCILLATION_ATTACK": [
+        {num: "01", text: "Engage frequency dampening protocols", icon: "〰️"},
+        {num: "02", text: "Filter high-frequency noise from sensor feed", icon: "🎛️"}
+    ],
+    "SENSOR_FREEZE_ATTACK": [
+        {num: "01", text: "Ping sensor for hardware reset", icon: "📡"},
+        {num: "02", text: "Switch to redundant backup sensor stream", icon: "🔄"}
+    ],
+    "BYZANTINE_ATTACK": [
+        {num: "01", text: "Exclude malicious node from global consensus", icon: "✂️"},
+        {num: "02", text: "Re-calculate global model weights locally", icon: "🧮"}
+    ],
+    "DEFAULT": [
+        {num: "01", text: "Isolate affected sensor node from pipeline", icon: "🔒"},
+        {num: "02", text: "Ignore corrupted data during local aggregation", icon: "🚫"}
+    ]
+};
+
+let currentTabMode = 'overview';
+let activeAlertPresent = false;
+
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', (e) => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    currentTabMode = e.target.getAttribute('data-target');
+    syncViewLayouts();
+  });
+});
+
+function syncViewLayouts() {
+  const clsSec = document.getElementById('sec-classification');
+  const chrtSec = document.getElementById('sec-charts-container');
+  const mitSec = document.getElementById('sec-mitigation');
+  const nodSec = document.getElementById('sec-nodes');
+
+  if (currentTabMode === 'overview') {
+    clsSec.style.display = 'block'; chrtSec.style.display = 'none'; nodSec.style.display = 'block';
+    mitSec.style.display = activeAlertPresent ? 'block' : 'none';
+  } else if (currentTabMode === 'detection') {
+    clsSec.style.display = 'block'; chrtSec.style.display = 'none';
+    mitSec.style.display = 'none'; nodSec.style.display = 'block';
+  } else if (currentTabMode === 'charts') {
+    chrtSec.style.display = 'block';
+    clsSec.style.display = 'none'; mitSec.style.display = 'none'; nodSec.style.display = 'none';
+  } else if (currentTabMode === 'mitigation') {
+    mitSec.style.display = 'block'; nodSec.style.display = 'none';
+    clsSec.style.display = 'none'; chrtSec.style.display = 'none';
+  }
+}
+
+const historyArrays = {
+    client_a: Array(60).fill(0), client_b: Array(60).fill(0),
+    client_c: Array(60).fill(0), client_d: Array(60).fill(0)
+};
+
+const runningThresholds = { client_a: 24.5, client_b: 24.5, client_c: 24.5, client_d: 24.5 };
+
+function drawSingleCanvas(canvasId, dataArray, clientKey, strokeColor) {
+  const cnv = document.getElementById(canvasId); if (!cnv) return;
+  const c = cnv.getContext('2d');
+  
+  cnv.width = cnv.offsetWidth; cnv.height = cnv.offsetHeight;
+  const w = cnv.width, h = cnv.height;
+  c.clearRect(0, 0, w, h);
+
+  const pad = {top: 10, right: 10, bottom: 15, left: 45};
+  const chartW = w - pad.left - pad.right; const chartH = h - pad.top - pad.bottom;
+  
+  // ✅ FIXED SIMPLE 2D SCALE: Force a locked fixed max baseline limit (40.0) 
+  // identical to client_c so that the coordinate matrices never distort or overlap!
+  const maxVal = 40.0;
+  const minVal = 0.0;
+
+  function xPos(i) { return pad.left + (i / (dataArray.length - 1)) * chartW; }
+  function yPos(v) { 
+    // Secure bounds mapping to prevent out-of-range drawing artifacts
+    const clampedV = Math.max(minVal, Math.min(maxVal, v));
+    return pad.top + chartH - ((clampedV - minVal) / (maxVal - minVal)) * chartH; 
+  }
+
+  // Clear 2D Background Grid Lines Matrix
+  c.strokeStyle = 'rgba(26,45,80,0.4)'; c.lineWidth = 1;
+  for(let i=0; i<=4; i++) {
+     const y = pad.top + (i/4) * chartH; 
+     c.beginPath(); 
+     c.moveTo(pad.left, y); 
+     c.lineTo(w - pad.right, y); 
+     c.stroke();
+     
+     const labelValue = maxVal - (i/4) * maxVal; 
+     c.fillStyle = 'rgba(122,156,197,0.4)'; 
+     c.font = '8px JetBrains Mono';
+     c.fillText(labelValue.toFixed(1), 2, y + 3);
+  }
+
+  // Draw Dynamic Horizontal Threshold Dash Relays
+  let currentThresh = runningThresholds[clientKey] || 0.0;
+  const ty = yPos(currentThresh);
+  c.strokeStyle = 'rgba(255,34,68,0.7)'; c.setLineDash([4, 4]); c.lineWidth = 1.2;
+  c.beginPath(); c.moveTo(pad.left, ty); c.lineTo(w - pad.right, ty); c.stroke(); c.setLineDash([]);
+
+  // Plot Clear operational metrics line tracking feed
+  c.strokeStyle = strokeColor; c.lineWidth = 1.8; c.beginPath();
+  dataArray.forEach((v, i) => { if (i === 0) c.moveTo(xPos(i), yPos(v)); else c.lineTo(xPos(i), yPos(v)); });
+  c.stroke();
+}
+
+function updateAllCanvases() {
+  drawSingleCanvas('chart_client_a', historyArrays.client_a, 'client_a', '#00aaff');
+  drawSingleCanvas('chart_client_b', historyArrays.client_b, 'client_b', '#00e5ff');
+  drawSingleCanvas('chart_client_c', historyArrays.client_c, 'client_c', '#00ff88');
+  drawSingleCanvas('chart_client_d', historyArrays.client_d, 'client_d', '#aa44ff');
+}
+
+async function pollDashboardData() {
+  try {
+    const response = await fetch('/api/data?_cb=' + new Date().getTime());
+    if (!response.ok) return;
+    const res = await response.json();
+    
+    const metricBoxes = document.querySelectorAll('.metric-v');
+    if(metricBoxes.length >= 3) {
+        metricBoxes[0].innerText = res.metrics.voltage_avg.toFixed(1);
+        metricBoxes[1].innerText = res.metrics.active_alarms;
+        metricBoxes[2].innerText = res.metrics.anomaly_rate + '%';
+    }
+
+    historyArrays.client_a = res.histories.client_a || Array(60).fill(0);
+    historyArrays.client_b = res.histories.client_b || Array(60).fill(0);
+    historyArrays.client_c = res.histories.client_c || Array(60).fill(0);
+    historyArrays.client_d = res.histories.client_d || Array(60).fill(0);
+
+    if(res.thresholds) {
+       Object.keys(res.thresholds).forEach(key => {
+          const cleanKey = key.trim().toLowerCase();
+          if (cleanKey in runningThresholds) {
+              runningThresholds[cleanKey] = res.thresholds[key];
+          }
+       });
+    }
+    
+    document.querySelectorAll('.client-card').forEach(card => {
+      card.classList.remove('anomaly');
+      card.querySelector('.status-pill').className = 'status-pill pill-normal';
+      card.querySelector('.status-pill').innerText = 'NORMAL';
+      card.querySelector('.client-error').className = 'client-error error-normal';
+      const cid = card.querySelector('.client-id').innerText.toLowerCase();
+      const err = historyArrays[cid] ? historyArrays[cid][59] : 0;
+      
+      card.querySelector('.client-error span').innerText = err.toString();
+      const bar = card.querySelector('.threshold-fill');
+      if(bar) { bar.style.width = Math.min((err / (runningThresholds[cid] || 1))*100, 100)+'%'; bar.style.background = 'var(--accent-green)'; }
+    });
+
+    if (res.alerts.length > 0) {
+      activeAlertPresent = true;
+      const active = res.alerts[0];
+      const cleanAttackName = active.attack_type.replace(/_/g, ' ');
+      const targetedNode = active.client_id.toLowerCase();
+      
+      const popupBubble = document.getElementById('alertPopup');
+      if(popupBubble) { popupBubble.style.display = 'block'; popupBubble.querySelector('.notif-body').innerHTML = `${active.client_id} → ${cleanAttackName}<br>Error: ${active.reconstruction_error}`; }
+
+      document.getElementById('mainDetectionPanel').innerHTML = `
+        <div class="alert-card critical">
+          <div class="alert-top">
+            <div><div style="display:flex;gap:10px;margin-bottom:4px"><div class="alert-type" style="color:var(--accent-red)">🚨 ${cleanAttackName}</div><div class="tag tag-red">CRITICAL</div></div></div>
+            <div class="alert-confidence">CONF: 100%</div>
+          </div>
+          <div class="alert-details">
+            <div class="detail-item"><div class="detail-key">Affected Substation</div><div class="detail-val">${active.client_id}</div></div>
+            <div class="detail-item"><div class="detail-key">Anomaly Magnitude</div><div class="detail-val" style="color:var(--accent-red)">${active.reconstruction_error}</div></div>
+            <div class="detail-item"><div class="detail-key">Calibrated Limit</div><div class="detail-val">${active.threshold}</div></div>
+          </div>
+        </div>`;
+
+      document.getElementById('mainMitigationPanel').style.display = 'block';
+      document.getElementById('mitigationTitle').innerText = `RECOMMENDED INTERVENTION PROTOCOLS → ${cleanAttackName} ON ${active.client_id.toUpperCase()}`;
+      const uniqueSteps = strategyDB[active.attack_type] || strategyDB["DEFAULT"];
+      document.getElementById('mitigationStepsContainer').innerHTML = uniqueSteps.map(s => `<div class="step-item"><div class="step-num">${s.num}</div><div class="step-text">${s.text}</div><div class="step-icon">${s.icon}</div></div>`).join('');
+
+      const targetCard = document.getElementById('card_' + targetedNode);
+      if(targetCard) {
+        targetCard.classList.add('anomaly');
+        targetCard.querySelector('.status-pill').className = 'status-pill pill-attack';
+        targetCard.querySelector('.status-pill').innerText = 'ANOMALY';
+        targetCard.querySelector('.client-error').className = 'client-error error-high';
+        targetCard.querySelector('.threshold-fill').style.background = 'var(--accent-red)';
+      }
+    } else {
+      activeAlertPresent = false;
+      document.getElementById('mainDetectionPanel').innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-dim);text-align:center;padding:30px;">✓ SYSTEM ADAPTIVE INSULATION ACTIVE — NO ATTEMPTS DETECTED</div>`;
+      const popupBubble = document.getElementById('alertPopup'); if(popupBubble) popupBubble.style.display = 'none';
+    }
+
+    document.getElementById('lbl_client_a').innerText = `Err: ${historyArrays.client_a[59].toString()} | Thresh: ${runningThresholds.client_a.toString()}`;
+    document.getElementById('lbl_client_b').innerText = `Err: ${historyArrays.client_b[59].toString()} | Thresh: ${runningThresholds.client_b.toString()}`;
+    document.getElementById('lbl_client_c').innerText = `Err: ${historyArrays.client_c[59].toString()} | Thresh: ${runningThresholds.client_c.toString()}`;
+    document.getElementById('lbl_client_d').innerText = `Err: ${historyArrays.client_d[59].toString()} | Thresh: ${runningThresholds.client_d.toString()}`;
+
+    updateAllCanvases();
+    syncViewLayouts();
+
+    document.getElementById('sidebarLogs').innerHTML = res.logs.map(l => `<div class="event-item"><div class="event-time">${l.time}</div><div class="event-dot" style="background:var(--accent-red)"></div><div class="event-desc">${l.desc}</div></div>`).join('');
+    
+    if(res.distributions) {
+        document.getElementById('sidebarDist').innerHTML = Object.entries(res.distributions).map(([atk, count]) => {
+            const pct = Math.min((count / Math.max(1, res.metrics.active_alarms)) * 100, 100);
+            return `<div class="dist-item"><div class="dist-label">${atk.replace('_ATTACK','').replace(/_/g,' ').toLowerCase()}</div><div class="dist-bar-bg"><div class="dist-bar" style="width:${pct}%;background:var(--accent-red)"></div></div><div class="dist-count">${count}</div></div>`;
+        }).join('');
+    }
+
+  } catch (e) { }
+}
+setInterval(pollDashboardData, 1000);
+</script>
+</body>
+</html>
